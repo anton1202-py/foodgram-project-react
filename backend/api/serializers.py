@@ -120,7 +120,7 @@ class RecepieIngredientSerializer(serializers.ModelSerializer):
     model = RecepieIngredient
 
     class Meta:
-        fields = ('amount')
+        fields = ('id', 'amount')
 
 
 class RecepieWriteSerializer(serializers.ModelSerializer):

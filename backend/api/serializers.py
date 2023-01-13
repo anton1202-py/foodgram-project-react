@@ -2,6 +2,7 @@ from string import hexdigits
 
 from django.contrib.auth import get_user_model
 from django.db.models import F
+from django.shortcuts import get_object_or_404
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
 from rest_framework.fields import SerializerMethodField
@@ -78,10 +79,6 @@ class UserSubscribeSerializer(UserSerializer):
         )
         read_only_fields = '__all__',
 
-    def get_is_subscribed(*args):
-        """Проверка подписки пользователей."""
-        return True
-
     def get_recipes_count(self, obj):
         """ Показывает общее количество рецептов у каждого автора."""
         return obj.recipes.count()
@@ -107,7 +104,7 @@ class TagSerializer(serializers.ModelSerializer):
     def validate_color(self, color):
         """Проверяет введенный код цвета."""
         color = str(color).strip(' #')
-        TagSerializer.is_hex_color(color)
+        self.is_hex_color(color)
         return f'#{color}'
 
 
@@ -146,13 +143,6 @@ class RecepieWriteSerializer(serializers.ModelSerializer):
             'is_shopping_cart',
         )
 
-    def get_ingredients(self, obj):
-        """Получает список ингридиентов для рецепта."""
-        ingredients = obj.ingredients.values(
-            'id', 'name', 'measurement_unit', amount=F('recipe__amount')
-        )
-        return ingredients
-    
     def get_is_favorited(self, obj):
         """Находится ли рецепт в избранном."""
         user = self.context.get('request').user
@@ -167,7 +157,14 @@ class RecepieWriteSerializer(serializers.ModelSerializer):
             return False
         return user.carts.filter(id=obj.id).exists()
 
-    def check_value_validate(value, klass=None):
+    def get_ingredients(self, obj):
+        """Получает список ингридиентов для рецепта."""
+        ingredients = obj.ingredients.values(
+            'id', 'name', 'measurement_unit', amount=F('recipe__amount')
+        )
+        return ingredients
+    
+    def check_value_validate(self, value, klass=None):
         """Проверяет правильно ли передано значение."""
         if not str(value).isdecimal():
             raise ValidationError(f'{value} должно содержать цифру')
@@ -186,6 +183,16 @@ class RecepieWriteSerializer(serializers.ModelSerializer):
         ingredients = self.initial_data.get('ingredients')
         values_as_list = (tags, ingredients)
 
+        ingredients = ingredients
+        ingredient_list = []
+        for items in ingredients:
+            ingredient = get_object_or_404(
+                Ingredient, id=items['id'])
+            if ingredient in ingredient_list:
+                raise serializers.ValidationError(
+                    'Ингредиент должен быть уникальным!')
+            ingredient_list.append(ingredient)
+
         for value in values_as_list:
             if not isinstance(value, list):
                 raise ValidationError(
@@ -193,27 +200,26 @@ class RecepieWriteSerializer(serializers.ModelSerializer):
                 )
 
         for tag in tags:
-            RecepieWriteSerializer.check_value_validate(tag, Tag)
+            self.check_value_validate(tag, Tag)
 
         valid_ingredients = []
         for ing in ingredients:
             ing_id = ing.get('id')
-            ingredient = RecepieWriteSerializer.check_value_validate(
+            ingredient = self.check_value_validate(
                 ing_id, Ingredient)
             amount = ing.get('amount')
-            RecepieWriteSerializer.check_value_validate(amount)
+            self.check_value_validate(amount)
 
             valid_ingredients.append(
                 {'ingredient': ingredient, 'amount': amount}
             )
-
         data['name'] = name.capitalize()
         data['tags'] = tags
         data['ingredients'] = valid_ingredients
         data['author'] = self.context.get('request').user
         return data
 
-    def recipe_amount_ingredients_write(recipe, ingredients):
+    def recipe_amount_ingredients_write(self, recipe, ingredients):
         """Записывает ингредиенты вложенные в рецепт."""
         for ingredient in ingredients:
             AmountIngredient.objects.get_or_create(
@@ -229,31 +235,13 @@ class RecepieWriteSerializer(serializers.ModelSerializer):
         ingredients = validated_data.pop('ingredients')
         recipe = Recipe.objects.create(image=image, **validated_data)
         recipe.tags.set(tags)
-        RecepieWriteSerializer.recipe_amount_ingredients_write(
-            recipe, ingredients)
+        self.recipe_amount_ingredients_write(recipe, ingredients)
         return recipe
 
     def update(self, recipe, validated_data):
         """Обновление рецепта."""
-        tags = validated_data.get('tags')
-        ingredients = validated_data.get('ingredients')
-        recipe.image = validated_data.get(
-            'image', recipe.image)
-        recipe.name = validated_data.get(
-            'name', recipe.name)
-        recipe.text = validated_data.get(
-            'text', recipe.text)
-        recipe.cooking_time = validated_data.get(
-            'cooking_time', recipe.cooking_time)
-
-        if tags:
-            recipe.tags.clear()
-            recipe.tags.set(tags)
-
-        if ingredients:
-            recipe.ingredients.clear()
-            RecepieWriteSerializer.recipe_amount_ingredients_write(
-                recipe, ingredients)
-
-        recipe.save()
-        return recipe
+        tags = validated_data.pop('tags')
+        ingredients = validated_data.pop('ingredients')
+        recipe.tags.set(tags)
+        self.recipe_amount_ingredients_write(recipe, ingredients)
+        return super().update(recipe, validated_data)

@@ -1,7 +1,7 @@
-from datetime import datetime as dt
+from django.utils import timezone
 from urllib.parse import unquote
 
-from django.db.models import F, Sum
+from django.db.models import F, Q, Sum
 from django.http.response import HttpResponse
 from djoser.views import UserViewSet as DjoserUserViewSet
 from rest_framework.decorators import action
@@ -17,11 +17,12 @@ from .serializers import (IngredientSerializer, RecepieWriteSerializer,
                           ShortRecipeSerializer, TagSerializer,
                           UserSubscribeSerializer)
 
-DATE_FORMAT = '%d/%m/%Y %H:%M'
+DATE_FORMAT = '%d-%m-%Y %H:%M'
 ADD_METHODS = ('GET', 'POST',)
-
 DEL_METHODS = ('DELETE',)
 
+IN_CART = ('1', 'true',)
+NOT_IN_CART = ('0', 'false',)
 
 class UserViewSet(DjoserUserViewSet, AddDelViewMixin):
     """Вьюсет для пользователей."""
@@ -68,13 +69,9 @@ class IngredientViewSet(ReadOnlyModelViewSet):
             if name[0] == '%':
                 name = unquote(name)
             name = name.lower()
-            stw_queryset = list(queryset.filter(name__startswith=name))
-            cnt_queryset = queryset.filter(name__contains=name)
-            stw_queryset.extend(
-                [i for i in cnt_queryset if i not in stw_queryset]
-            )
-            queryset = stw_queryset
-        return queryset
+            stw_queryset = list(queryset.filter(
+                Q(name__startswith=name) & Q(name__contains=name)))
+        return stw_queryset
 
 
 class RecipeViewSet(ModelViewSet, AddDelViewMixin):
@@ -96,22 +93,21 @@ class RecipeViewSet(ModelViewSet, AddDelViewMixin):
         author = self.request.query_params.get('author')
         if author:
             queryset = queryset.filter(author=author)
-            print(queryset)
 
         user = self.request.user
         if user.is_anonymous:
             return queryset
 
         is_in_shopping = self.request.query_params.get('is_in_shopping_cart')
-        if is_in_shopping in ('1', 'true',):
+        if is_in_shopping in IN_CART:
             queryset = queryset.filter(cart=user.id)
-        elif is_in_shopping in ('0', 'false',):
+        elif is_in_shopping in NOT_IN_CART:
             queryset = queryset.exclude(cart=user.id)
 
         is_favorited = self.request.query_params.get('is_favorited')
-        if is_favorited in ('1', 'true',):
+        if is_favorited in IN_CART:
             queryset = queryset.filter(favorite=user.id)
-        if is_favorited in ('0', 'false',):
+        if is_favorited in NOT_IN_CART:
             queryset = queryset.exclude(favorite=user.id)
         return queryset
 
@@ -136,16 +132,15 @@ class RecipeViewSet(ModelViewSet, AddDelViewMixin):
         ).values(
             ingredient=F('ingredients__name'),
             measure=F('ingredients__measurement_unit')
-        ).annotate(amount=Sum('amount'))
-
+        ).annotate(quantity=Sum('amount'))
         filename = f'{user.username}_shopping_list.txt'
         shopping_list = (
             f'Список покупок для:\n\n{user.first_name}\n'
-            f'{dt.now().strftime(DATE_FORMAT)}\n'
+            f'{timezone.now().strftime(DATE_FORMAT)}\n'
         )
         for ing in ingredients:
             shopping_list += (
-                f'{ing["ingredient"]}: {ing["amount"]} {ing["measure"]}\n'
+                f'{ing["ingredient"]}: {ing["quantity"]} {ing["measure"]}\n'
             )
 
         shopping_list += '\n\nПосчитано в Foodgram'

@@ -81,6 +81,10 @@ class RecipeViewSet(ModelViewSet, AddDelViewMixin):
     permission_classes = (AdminAuthorOrReadOnly,)
     pagination_class = PagePagination
     add_serializer = ShortRecipeSerializer
+    
+    def perform_create(self, serializer):
+        """Переопределение метода создания рецепта"""
+        serializer.save(author=self.request.user)
 
     def get_queryset(self):
         """Получает queryset в соответствии с параметрами запроса."""

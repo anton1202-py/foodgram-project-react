@@ -7,6 +7,15 @@ ADD_MET = ('GET', 'POST',)
 DEL_MET = ('DELETE',)
 
 
+class GetIsSubscribedMixin:
+    def get_is_subscribed(self, obj):
+        """Проверка подписки пользователей."""
+        user = self.context.get('request').user
+        if user.is_anonymous or (user == obj):
+            return False
+        return user.subscribe.filter(id=obj.id).exists()
+
+
 class AddDelViewMixin:
     """Добавляет добавляющий и удаляющий методы."""
     add_serializer = None

@@ -160,7 +160,7 @@ class RecepieWriteSerializer(serializers.ModelSerializer):
     def get_ingredients(self, obj):
         """Получает список ингридиентов для рецепта."""
         ingredients = obj.ingredients.values(
-            'id', 'name', 'measurement_unit', amount=F('recipe__amount')
+            'id', 'name', 'measurement_unit', quantity=F('recipe__amount')
         )
         return ingredients
     

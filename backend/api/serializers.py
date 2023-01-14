@@ -161,7 +161,7 @@ class RecipeReadSerializer(serializers.ModelSerializer):
         model = Recipe
         fields = ('id', 'name', 'tags', 'author', 'ingredients',
                   'image', 'text', 'cooking_time',)
-
+ 
     def get_ingredients(self, obj):
         """Получает список ингридиентов для рецепта."""
         ingredients = obj.ingredients.values(
@@ -207,6 +207,18 @@ class RecepieWriteSerializer(serializers.ModelSerializer):
             'id', 'name', 'measurement_unit', quantity=F('recipe__amount')
         )
         return ingredients
+
+    def check_value_validate(self, value, klass=None): 
+        """Проверяет правильно ли передано значение.""" 
+        if not str(value).isdecimal(): 
+            raise ValidationError(f'{value} должно содержать цифру') 
+        if klass: 
+            obj = klass.objects.filter(id=value) 
+            if not obj: 
+                raise ValidationError( 
+                    f'Значения {value} не существует' 
+                ) 
+            return obj[0]
 
     def validate(self, data):
         """Проверка вводных данных при создании и редактировании рецепта. """

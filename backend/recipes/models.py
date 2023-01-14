@@ -21,7 +21,7 @@ class Tag(Model):
     )
     color = CharField(
         verbose_name='Цветовой HEX-код',
-        max_length=6,
+        max_length=7,
         blank=True,
         null=True,
         default='FF',

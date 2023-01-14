@@ -84,7 +84,7 @@ class TagSerializer(serializers.ModelSerializer):
         model = Tag
         fields = ('id', 'name', 'color', 'slug',)
 
-    def is_hex_color(value):
+    def is_hex_color(self, value):
         """Проверка на шестнадцатеричный цвет."""
         if len(value) not in (3, 6):
             raise ValidationError(
@@ -146,6 +146,7 @@ class RecipeUserSerializer(
             'email', 'id', 'username',
             'first_name', 'last_name', 'is_subscribed')
 
+
 class RecipeReadSerializer(serializers.ModelSerializer):
     """Сериализатор для просмотра рецептов"""
     tags = TagSerializer(many=True, read_only=True)
@@ -160,7 +161,7 @@ class RecipeReadSerializer(serializers.ModelSerializer):
         model = Recipe
         fields = ('id', 'name', 'tags', 'author', 'ingredients',
                   'image', 'text', 'cooking_time',)
- 
+
     def get_ingredients(self, obj):
         """Получает список ингридиентов для рецепта."""
         ingredients = obj.ingredients.values(
@@ -207,18 +208,6 @@ class RecepieWriteSerializer(serializers.ModelSerializer):
         )
         return ingredients
 
-    def check_value_validate(self, value, klass=None):
-        """Проверяет правильно ли передано значение."""
-        if not str(value).isdecimal():
-            raise ValidationError(f'{value} должно содержать цифру')
-        if klass:
-            obj = klass.objects.filter(id=value)
-            if not obj:
-                raise ValidationError(
-                    f'Значения {value} не существует'
-                )
-            return obj[0]
-
     def validate(self, data):
         """Проверка вводных данных при создании и редактировании рецепта. """
         ingredients = data['ingredients']
@@ -231,16 +220,10 @@ class RecepieWriteSerializer(serializers.ModelSerializer):
                     'Ингредиент должен быть уникальным!')
             ingredient_list.append(ingredient)
 
-        tags = self.initial_data.get('tags')
-        values_as_list = (tags, ingredients)
-        for value in values_as_list:
-            if not isinstance(value, list):
-                raise ValidationError(
-                    f'Значение "{value}" должно быть в формате "[]"'
-                )
-
-        for tag in tags:
-            self.check_value_validate(tag, Tag)
+        tags = data['tags']
+        if not tags:
+            raise serializers.ValidationError(
+                'Нужен хотя бы один тэг для рецепта!')
 
         valid_ingredients = []
         for ing in ingredients:
@@ -257,13 +240,11 @@ class RecepieWriteSerializer(serializers.ModelSerializer):
 
     def recipe_amount_ingredients_write(self, recipe, ingredients):
         """Записывает ингредиенты вложенные в рецепт."""
-        for ingredient in ingredients:
-            AmountIngredient.objects.create(
+        AmountIngredient.objects.bulk_create(
+            [AmountIngredient(
                 recipe=recipe,
-                ingredients=get_object_or_404(Ingredient,
-                id=ingredient.get('id')),
-                amount=ingredient.get('amount')
-            )
+                ingredients=get_object_or_404(Ingredient, id=ingr.get('id')),
+                amount=ingr.get('amount')) for ingr in ingredients])
 
     def create(self, validated_data):
         """Создание рецепта."""
@@ -279,6 +260,7 @@ class RecepieWriteSerializer(serializers.ModelSerializer):
         tags = validated_data.pop('tags')
         ingredients = validated_data.pop('ingredients')
         recipe.tags.set(tags)
+        AmountIngredient.objects.filter(recipe=recipe).delete()
         self.recipe_amount_ingredients_write(recipe, ingredients)
         return super().update(recipe, validated_data)
 

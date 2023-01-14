@@ -1,8 +1,8 @@
-from django.utils import timezone
 from urllib.parse import unquote
 
 from django.db.models import F, Q, Sum
 from django.http.response import HttpResponse
+from django.utils import timezone
 from djoser.views import UserViewSet as DjoserUserViewSet
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -23,6 +23,7 @@ DEL_METHODS = ('DELETE',)
 
 IN_CART = ('1', 'true',)
 NOT_IN_CART = ('0', 'false',)
+
 
 class UserViewSet(DjoserUserViewSet, AddDelViewMixin):
     """Вьюсет для пользователей."""
@@ -69,8 +70,8 @@ class IngredientViewSet(ReadOnlyModelViewSet):
             if name[0] == '%':
                 name = unquote(name)
             name = name.lower()
-            stw_queryset = list(queryset.filter(
-                Q(name__startswith=name) & Q(name__contains=name)))
+            stw_queryset = queryset.filter(
+                Q(name__startswith=name) & Q(name__contains=name))
         return stw_queryset
 
 
@@ -81,7 +82,7 @@ class RecipeViewSet(ModelViewSet, AddDelViewMixin):
     permission_classes = (AdminAuthorOrReadOnly,)
     pagination_class = PagePagination
     add_serializer = ShortRecipeSerializer
-    
+
     def perform_create(self, serializer):
         """Переопределение метода создания рецепта"""
         serializer.save(author=self.request.user)

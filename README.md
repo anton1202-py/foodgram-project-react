@@ -13,12 +13,12 @@ http://51.250.77.154
 3. Запустить виртуальное окружение (*. venv/scripts/activate*)
 4. Установить зависимости (*pip install -r requirements.txt*)
 5. Создать файл .env со своими данными для базы данных PosgreSQL
->DB_ENGINE=django.db.backends.postgresql
->DB_NAME='postgres'
->POSTGRES_USER='ваше имя юзера'
->POSTGRES_PASSWORD='ваш пароль'
->DB_HOST='db'
->DB_PORT=5432
+>DB_ENGINE=django.db.backends.postgresql  
+>DB_NAME='postgres'  
+>POSTGRES_USER='ваше имя юзера'  
+>POSTGRES_PASSWORD='ваш пароль'  
+>DB_HOST='db'  
+>DB_PORT=5432  
 6. Создать миграции (*python manage.py makemigrations*)
 7. Выполнить миграции (*python manage.py migrate*)
 8. Собрать статику (*python manage.py collectstatic*)

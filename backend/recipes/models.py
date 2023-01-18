@@ -101,7 +101,7 @@ class Recipe(Model):
         to=User,
         on_delete=CASCADE,
     )
-    favorites = ManyToManyField(
+    favorite = ManyToManyField(
         verbose_name='Понравившиеся рецепты',
         related_name='favorites',
         to=User,

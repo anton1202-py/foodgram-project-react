@@ -86,7 +86,7 @@ class TagSerializer(serializers.ModelSerializer):
 
     def is_hex_color(self, value):
         """Проверка на шестнадцатеричный цвет."""
-        if len(value) not in (3, 6):
+        if len(value) not in (4, 8):
             raise ValidationError(
                 f'{value} не правильной длины ({len(value)}).'
             )

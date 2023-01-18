@@ -118,7 +118,7 @@ class RecipeViewSet(ModelViewSet, AddDelViewMixin):
 
     @action(methods=('get', 'post', 'delete',), detail=True)
     def favorite(self, request, pk):
-        """Добавляет/удалет рецепт в `избранное`."""
+        """Добавляет/удаляет рецепт в `избранное`."""
         return self.add_del_method(pk, 'favorite')
 
     @action(methods=('get', 'post', 'delete',), detail=True)

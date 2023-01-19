@@ -111,9 +111,9 @@ class RecipeViewSet(ModelViewSet, AddDelViewMixin):
 
         is_favorited = self.request.query_params.get('is_favorited')
         if is_favorited in IN_CART:
-            queryset = queryset.filter(favorite=user.id)
+            queryset = queryset.filter(favorites=user.id)
         if is_favorited in NOT_IN_CART:
-            queryset = queryset.exclude(favorite=user.id)
+            queryset = queryset.exclude(favorites=user.id)
         return queryset
 
     @action(methods=('get', 'post', 'delete',), detail=True)
